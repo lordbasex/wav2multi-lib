@@ -39,7 +39,7 @@ func (t *DefaultTranscoder) Transcode(config TranscoderConfig) (*TranscoderResul
 	if err != nil {
 		return nil, fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outputFile.Close()
+	defer func() { _ = outputFile.Close() }()
 
 	// Get encoder for the target format
 	encoder, err := GetEncoder(config.Format)
@@ -52,7 +52,7 @@ func (t *DefaultTranscoder) Transcode(config TranscoderConfig) (*TranscoderResul
 	if err != nil {
 		return nil, fmt.Errorf("failed to open input file: %w", err)
 	}
-	defer inputFile.Close()
+	defer func() { _ = inputFile.Close() }()
 
 	// Read WAV samples
 	samples, fileInfo, err := ReadWAVSamples(inputFile)
@@ -129,7 +129,7 @@ func (t *DefaultTranscoder) TranscodeFromReader(reader io.Reader, outputPath str
 	if err != nil {
 		return nil, fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outputFile.Close()
+	defer func() { _ = outputFile.Close() }()
 
 	// Encode samples
 	if err := encoder.Encode(samples, outputFile); err != nil {
@@ -193,7 +193,7 @@ func (t *DefaultTranscoder) TranscodeToWriter(inputPath string, writer io.Writer
 	if err != nil {
 		return nil, fmt.Errorf("failed to open input file: %w", err)
 	}
-	defer inputFile.Close()
+	defer func() { _ = inputFile.Close() }()
 
 	// Read WAV samples
 	samples, fileInfo, err := ReadWAVSamples(inputFile)
@@ -242,7 +242,7 @@ func (t *DefaultTranscoder) ValidateInput(inputPath string) (*FileInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Read WAV samples to validate format
 	_, fileInfo, err := ReadWAVSamples(file)
