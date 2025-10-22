@@ -1,10 +1,12 @@
 # Makefile for wav2multi-lib
 
-.PHONY: help test test-verbose test-coverage build example clean install-deps lint format check
+.PHONY: help test test-verbose test-coverage build example clean install-deps lint format check tag tag-push release deploy tag-delete tag-list
 
 # Default target
 help:
 	@echo "Available targets:"
+	@echo ""
+	@echo "Development:"
 	@echo "  make test          - Run tests"
 	@echo "  make test-verbose  - Run tests with verbose output"
 	@echo "  make test-coverage - Run tests with coverage report"
@@ -15,6 +17,18 @@ help:
 	@echo "  make lint          - Run linters"
 	@echo "  make format        - Format code"
 	@echo "  make check         - Run all checks (format, lint, test)"
+	@echo ""
+	@echo "Release & Deployment:"
+	@echo "  make tag           - Create a new version tag (interactive)"
+	@echo "  make tag-push      - Push tags to remote"
+	@echo "  make release       - Create and push a new release tag"
+	@echo "  make deploy        - Full deployment (check + tag + push)"
+	@echo "  make tag-list      - List all tags"
+	@echo "  make tag-delete    - Delete a tag (local and remote)"
+	@echo ""
+	@echo "Setup:"
+	@echo "  make install-bcg729 - Install bcg729 library (G.729 codec)"
+	@echo "  make version       - Show Go and module version"
 
 # Run tests
 test:
@@ -100,4 +114,155 @@ version:
 	@go version
 	@echo "\nModule info:"
 	@go list -m
+
+# ============================================================================
+# Release & Deployment
+# ============================================================================
+
+# Create a new version tag (interactive)
+tag:
+	@echo "Creating a new version tag..."
+	@echo ""
+	@echo "Current tags:"
+	@git tag -l | tail -5 || echo "  (no tags yet)"
+	@echo ""
+	@read -p "Enter new version (e.g., v1.0.0): " version; \
+	if [ -z "$$version" ]; then \
+		echo "❌ Version cannot be empty"; \
+		exit 1; \
+	fi; \
+	if ! echo "$$version" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "❌ Version must follow format: vX.Y.Z (e.g., v1.0.0)"; \
+		exit 1; \
+	fi; \
+	if git tag -l | grep -q "^$$version$$"; then \
+		echo "❌ Tag $$version already exists"; \
+		exit 1; \
+	fi; \
+	read -p "Enter release message: " message; \
+	if [ -z "$$message" ]; then \
+		message="Release $$version"; \
+	fi; \
+	git tag -a "$$version" -m "$$message"; \
+	echo "✅ Tag $$version created successfully!"; \
+	echo ""; \
+	echo "Next steps:"; \
+	echo "  1. Push tag:    make tag-push"; \
+	echo "  2. Or delete:   make tag-delete VERSION=$$version"
+
+# Push tags to remote
+tag-push:
+	@echo "Pushing tags to remote..."
+	@if [ -z "$$(git remote)" ]; then \
+		echo "❌ No remote repository configured"; \
+		exit 1; \
+	fi; \
+	git push origin --tags
+	@echo "✅ Tags pushed successfully!"
+	@echo ""
+	@echo "🎉 Release published! Users can now install with:"
+	@echo "   go get github.com/lordbasex/wav2multi-lib@$$(git describe --tags --abbrev=0)"
+
+# Create and push a new release tag (non-interactive)
+release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ VERSION is required"; \
+		echo "Usage: make release VERSION=v1.0.0 MESSAGE='Release message'"; \
+		exit 1; \
+	fi; \
+	if ! echo "$(VERSION)" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "❌ VERSION must follow format: vX.Y.Z (e.g., v1.0.0)"; \
+		exit 1; \
+	fi; \
+	if git tag -l | grep -q "^$(VERSION)$$"; then \
+		echo "❌ Tag $(VERSION) already exists"; \
+		exit 1; \
+	fi; \
+	MSG="$${MESSAGE:-Release $(VERSION)}"; \
+	git tag -a "$(VERSION)" -m "$$MSG"; \
+	echo "✅ Tag $(VERSION) created"; \
+	git push origin --tags; \
+	echo "✅ Tag pushed to remote"; \
+	echo ""; \
+	echo "🎉 Release $(VERSION) published!"; \
+	echo "   go get github.com/lordbasex/wav2multi-lib@$(VERSION)"
+
+# Full deployment: checks + tag + push
+deploy: check
+	@echo ""
+	@echo "╔═══════════════════════════════════════════════════════════╗"
+	@echo "║          🚀 DEPLOYMENT PROCESS                            ║"
+	@echo "╚═══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "✅ All checks passed!"
+	@echo ""
+	@echo "Current tags:"
+	@git tag -l | tail -5 || echo "  (no tags yet)"
+	@echo ""
+	@read -p "Enter new version (e.g., v1.0.0): " version; \
+	if [ -z "$$version" ]; then \
+		echo "❌ Version cannot be empty"; \
+		exit 1; \
+	fi; \
+	if ! echo "$$version" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "❌ Version must follow format: vX.Y.Z (e.g., v1.0.0)"; \
+		exit 1; \
+	fi; \
+	if git tag -l | grep -q "^$$version$$"; then \
+		echo "❌ Tag $$version already exists"; \
+		exit 1; \
+	fi; \
+	read -p "Enter release message (optional): " message; \
+	if [ -z "$$message" ]; then \
+		message="Release $$version"; \
+	fi; \
+	echo ""; \
+	echo "📋 Deployment Summary:"; \
+	echo "   Version: $$version"; \
+	echo "   Message: $$message"; \
+	echo "   Remote:  $$(git remote get-url origin 2>/dev/null || echo 'not configured')"; \
+	echo ""; \
+	read -p "Proceed with deployment? [y/N] " confirm; \
+	if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+		echo "❌ Deployment cancelled"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "Creating tag..."; \
+	git tag -a "$$version" -m "$$message"; \
+	echo "✅ Tag $$version created"; \
+	echo ""; \
+	echo "Pushing to remote..."; \
+	git push origin --tags; \
+	echo "✅ Tag pushed to remote"; \
+	echo ""; \
+	echo "╔═══════════════════════════════════════════════════════════╗"; \
+	echo "║          🎉 DEPLOYMENT SUCCESSFUL!                        ║"; \
+	echo "╚═══════════════════════════════════════════════════════════╝"; \
+	echo ""; \
+	echo "📦 Users can now install with:"; \
+	echo "   go get github.com/lordbasex/wav2multi-lib@$$version"; \
+	echo ""; \
+	echo "🔗 Next steps:"; \
+	echo "   1. Create GitHub Release (optional):"; \
+	echo "      https://github.com/lordbasex/wav2multi-lib/releases/new?tag=$$version"; \
+	echo "   2. Update CHANGELOG.md if needed"; \
+	echo "   3. Announce the release"
+
+# List all tags
+tag-list:
+	@echo "📋 All tags:"
+	@git tag -l -n1 || echo "  (no tags yet)"
+
+# Delete a tag (local and remote)
+tag-delete:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ VERSION is required"; \
+		echo "Usage: make tag-delete VERSION=v1.0.0"; \
+		exit 1; \
+	fi; \
+	echo "Deleting tag $(VERSION)..."; \
+	git tag -d "$(VERSION)" 2>/dev/null || echo "  Local tag not found"; \
+	git push origin :refs/tags/$(VERSION) 2>/dev/null || echo "  Remote tag not found"; \
+	echo "✅ Tag $(VERSION) deleted (if it existed)"
 

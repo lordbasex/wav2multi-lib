@@ -89,10 +89,8 @@ func pcmToULaw(pcm int16) byte {
 		pcm = -pcm
 	}
 
-	// Clamp to 14-bit range
-	if pcm > 32767 {
-		pcm = 32767
-	}
+	// Note: pcm is already constrained to int16 range (-32768 to 32767)
+	// After taking absolute value, it's in range (0 to 32767)
 
 	// Add bias
 	pcm += 33
@@ -128,10 +126,8 @@ func pcmToALaw(pcm int16) byte {
 		pcm = -pcm
 	}
 
-	// Clamp to 13-bit range
-	if pcm > 32767 {
-		pcm = 32767
-	}
+	// Note: pcm is already constrained to int16 range (-32768 to 32767)
+	// After taking absolute value, it's in range (0 to 32767)
 
 	// Add bias
 	pcm += 33
