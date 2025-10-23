@@ -7,6 +7,8 @@
 
 A professional Go library for converting WAV audio files to multiple telephony codecs: G.729, μ-law, A-law, and SLIN.
 
+<img src="logo.png" alt="wav2multi-lib logo" width="50%">
+
 ## 📋 Description
 
 This library provides a clean, idiomatic Go API for audio transcoding without command-line arguments. Perfect for integrating into other Go projects that need audio format conversion capabilities. **100% validated** to produce identical results to original implementations.
